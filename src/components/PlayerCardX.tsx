@@ -129,8 +129,9 @@ const PlayerCardPanini: React.FC<PlayerCardProps> = ({
             style={{
               width: "188px",
               padding: "10px 36px",
-              fontSize: "72px",
+              fontSize: "92px",
               lineHeight: "1",
+              fontWeight: 800,
             }}
           >
             {overall}
@@ -140,8 +141,9 @@ const PlayerCardPanini: React.FC<PlayerCardProps> = ({
             style={{
               width: "188px",
               padding: "0 36px",
-              fontSize: "40px",
+              fontSize: "48px",
               lineHeight: "1",
+              fontWeight: 800,
             }}
           >
             {position}
@@ -195,7 +197,7 @@ const PlayerCardPanini: React.FC<PlayerCardProps> = ({
         {/* Statystyki */}
         <div
           className="flex justify-around w-full font-medium"
-          style={{ fontSize: "36px", marginTop: "20px" }}
+          style={{ fontSize: "45px", marginTop: "20px", fontWeight: 800 }}
         >
           {(["DYN", "TEC", "INS"] as const).map((key) => (
             <div key={key} className={textColor}>

@@ -1,6 +1,5 @@
-'use client';
-import ClientLayout from '@/components/ClientLayout';
+import SidebarLayout from '@/components/SidebarLayout';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  return <ClientLayout>{children}</ClientLayout>;
+  return <SidebarLayout>{children}</SidebarLayout>;
 }
