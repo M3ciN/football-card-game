@@ -174,7 +174,7 @@ export default function SquadPage() {
   className="w-16 h-24 cursor-pointer"
 >
   <div className="w-full h-full pointer-events-none">
-    <PlayerCard {...card} scale={0.1} />
+    <PlayerCard {...card} scale={0.1} variant="compact" />
   </div>
 </div>
                 ) : (
