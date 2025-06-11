@@ -26,7 +26,7 @@ export interface PlayerCardProps {
   rarity?: Rarity;
   className?: string;
   onClick?: () => void;
-  /** "full" – z statystykami (domyślnie)  |  "compact" – bez statystyk, większe logotypy */
+  /** "full" – z nazwą i statystykami (domyślnie) | "compact" – tylko kluczowe elementy */
   variant?: "full" | "compact";
 }
 
@@ -46,15 +46,14 @@ const PlayerCardPanini: React.FC<PlayerCardProps> = ({
   onClick,
   variant = "full",
 }) => {
-  /* oryginalne proporcje Panini (750 × 1050 px) */
   const width = 750;
   const height = 1050;
 
   const { bg: effectiveBg, textColor } = rarityStyleMap[rarity];
+  const isCompact = variant === "compact";
 
-  /* Rozmiary logotypów zależne od wariantu */
-  const logoSize   = variant === "compact" ? 140 : 100;
-  const flagHeight = variant === "compact" ? 120 : 84;
+  const logoSize = isCompact ? 140 : 100;
+  const flagHeight = isCompact ? 120 : 84;
 
   return (
     <div
@@ -80,7 +79,7 @@ const PlayerCardPanini: React.FC<PlayerCardProps> = ({
         }}
       />
 
-      {/* FOTO + overall / pozycja / level */}
+      {/* Zdjęcie + overall/position/level */}
       <div
         className="relative flex justify-center pt-10 items-center overflow-hidden z-10"
         style={{ height: "644px" }}
@@ -94,23 +93,23 @@ const PlayerCardPanini: React.FC<PlayerCardProps> = ({
         {/* Overall + Pozycja */}
         <div
           className="absolute flex flex-col items-center gap-1 z-20"
-          style={{ top: "60px", left: "24px" }}
+          style={{ top: "60px", left: "58px" }}
         >
           <div
             className={`font-bold select-none ${textColor}`}
-            style={{ fontSize: "92px", lineHeight: 1, fontWeight: 800 }}
+            style={{ fontSize: "120px", lineHeight: 1, fontWeight: 800 }}
           >
             {overall}
           </div>
           <div
             className={`uppercase font-bold select-none ${textColor}`}
-            style={{ fontSize: "48px", lineHeight: 1, fontWeight: 800 }}
+            style={{ fontSize: "68px", lineHeight: 1, fontWeight: 800 }}
           >
             {position}
           </div>
         </div>
 
-        {/* Level (sześciokąt) */}
+        {/* Level */}
         <div
           className="absolute top-[60px] right-[60px] z-20 flex items-center justify-center select-none"
           style={{
@@ -128,7 +127,7 @@ const PlayerCardPanini: React.FC<PlayerCardProps> = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "40px",
+              fontSize: "68px",
               fontWeight: 600,
             }}
           >
@@ -137,15 +136,17 @@ const PlayerCardPanini: React.FC<PlayerCardProps> = ({
         </div>
       </div>
 
-      {/* Dół karty */}
+      {/* Dolna sekcja */}
       <div className="relative z-10 flex flex-col items-center text-center" style={{ padding: "10px 48px" }}>
-        {/* Nazwisko */}
-        <h2 className={`font-bold ${textColor}`} style={{ fontSize: "52px", marginBottom: "10px" }}>
-          {name}
-        </h2>
+        {/* Nazwa zawodnika (tylko w pełnej wersji) */}
+        {!isCompact && (
+          <h2 className={`font-bold ${textColor}`} style={{ fontSize: "52px", marginBottom: "10px" }}>
+            {name}
+          </h2>
+        )}
 
-        {/* Statystyki – tylko w trybie full */}
-        {variant === "full" && (
+        {/* Statystyki (tylko w pełnej wersji) */}
+        {!isCompact && (
           <div className="flex justify-around w-full font-medium" style={{ fontSize: "45px", fontWeight: 800, marginTop: "20px" }}>
             {(["DYN", "TEC", "INS"] as const).map((key) => (
               <div key={key} className={textColor}>
@@ -156,8 +157,8 @@ const PlayerCardPanini: React.FC<PlayerCardProps> = ({
           </div>
         )}
 
-        {/* Logotypy i flaga – większe w trybie compact */}
-        <div className="flex justify-center items-center gap-14" style={{ marginTop: variant === "compact" ? "40px" : "20px" }}>
+        {/* Logotypy */}
+        <div className="flex justify-center items-center gap-14" style={{ marginTop: isCompact ? "100px" : "20px" }}>
           <img src={clubLogoUrl}   alt="club"   style={{ width: logoSize, height: logoSize, objectFit: "contain" }} />
           <img src={leagueLogoUrl} alt="league" style={{ width: logoSize, height: logoSize, objectFit: "contain" }} />
           <img src={nationFlagUrl} alt="nation" style={{ width: logoSize, height: flagHeight, objectFit: "contain", borderRadius: 4 }} />

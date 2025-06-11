@@ -56,7 +56,7 @@ export default function SquadPage() {
   const router = useRouter();
   const [user,setUser]          = useState<User|null>(null);
   const [allCards,setAllCards]  = useState<Card[]>([]);
-  const [formation,setFormation]= useState<FormationKey>("4-4-2");
+  const [formation,setFormation]= useState<FormationKey>("4-3-3");
   const [squad,setSquad]        = useState<(Card|null)[]>(FORMATIONS["4-4-2"].map(()=>null));
   const [loading,setLoading]    = useState(true);
 
@@ -66,9 +66,26 @@ export default function SquadPage() {
 
   const [activeIdx,setActiveIdx]= useState<number|null>(null);
   const [selectIdx,setSelectIdx]= useState<number|null>(null); // modal wyboru
+const [showSellConfirm, setShowSellConfirm] = useState(false);
+
 
   /* ---------- auth ---------- */
   useEffect(()=>{const unsub=onAuthStateChanged(auth,u=>{u?setUser(u):router.push("/auth")});return unsub;},[]);
+
+  /* ---------- pobierz formację z bazy (jeśli ustawiona) ---------- */
+  useEffect(() => {
+  if (!user) return;
+
+  (async () => {
+    const uDoc = await getDoc(doc(db, "users", user.uid));
+    if (uDoc.exists()) {
+      const savedFormation = uDoc.data().formation as FormationKey | undefined;
+      if (savedFormation && savedFormation in FORMATIONS) {
+        setFormation(savedFormation);
+      }
+    }
+  })();
+}, [user]);
 
   /* ---------- pobierz logo/flag ---------- */
   useEffect(()=>{
@@ -106,6 +123,16 @@ export default function SquadPage() {
     updateDoc(doc(db,"users",user.uid),{squad:data});
   };
 
+  /* ---------- zapis formacji ---------- */
+  const handleFormationChange = async (newFormation: FormationKey) => {
+  setFormation(newFormation);
+
+  if (user) {
+    await updateDoc(doc(db, "users", user.uid), { formation: newFormation });
+  }
+};
+
+
   /* ---------- pomocnicze ---------- */
   const moveCard=(from:number,to:number)=>{
     const next=[...squad];
@@ -140,10 +167,16 @@ export default function SquadPage() {
       {/* ==== LEWO: BOISKO ==== */}
       <div className="flex-1 flex flex-col items-center p-4 overflow-y-auto">
         <h1 className="text-2xl mb-3">Formacja {formation}</h1>
-        <select value={formation} onChange={e=>setFormation(e.target.value as FormationKey)}
-                className="mb-5 px-2 py-1 rounded text-black">
-          {Object.keys(FORMATIONS).map(f=> <option key={f}>{f}</option> )}
-        </select>
+<select
+  value={formation}
+  onChange={e => handleFormationChange(e.target.value as FormationKey)}
+  className="mb-5 px-2 py-1 rounded text-black"
+>
+  {Object.keys(FORMATIONS).map(f => (
+    <option key={f}>{f}</option>
+  ))}
+</select>
+
 
         <div className="relative w-full max-w-3xl h-[60vh] bg-green-900 rounded-lg border-4 border-green-700 overflow-hidden">
           {/* linie */}
@@ -158,68 +191,163 @@ export default function SquadPage() {
             const slotPos=FORMATIONS[formation][idx];
 
             return (
-              <div
-                key={idx}
-                className="absolute w-16 h-24 -translate-x-1/2 -translate-y-1/2"
-                style={{top:pos.top,left:pos.left}}
-                onClick={()=>setActiveIdx(idx)}
-                onDragOver={e=>e.preventDefault()}
-                onDrop={e=>onDropSlot(e,idx)}
-                title={card?card.name:`Pozycja ${slotPos}`}
-              >
-                {card ? (
 <div
-  draggable
-  onDragStart={e => onDragStart(e, idx)}
-  className="w-16 h-24 cursor-pointer"
+  key={idx}
+  className="absolute w-20 h-28 -translate-x-1/2 -translate-y-1/2"
+  style={{top: pos.top, left: pos.left}}
+  onClick={() => setActiveIdx(idx)}
+  onDragOver={e => e.preventDefault()}
+  onDrop={e => onDropSlot(e, idx)}
+  title={card ? card.name : `Pozycja ${slotPos}`}
 >
-  <div className="w-full h-full pointer-events-none">
-    <PlayerCard {...card} scale={0.1} variant="compact" />
-  </div>
+ {card ? (
+    <div
+      draggable
+      onDragStart={e => onDragStart(e, idx)}
+      className="w-full h-full cursor-pointer"
+    >
+      <div className="w-full h-full pointer-events-none">
+        <PlayerCard {...card} scale={0.1} variant="compact" />
+      </div>
+    </div>
+  ) : (
+    <div className="w-full h-full flex items-center justify-center bg-green-700/80 border border-green-500 rounded-lg text-2xl">
+      +
+    </div>
+  )}
 </div>
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-green-700/80 border border-green-500 rounded-lg text-2xl">+</div>
-                )}
-              </div>
             );
           })}
         </div>
       </div>
 
-      {/* ==== PRAWY SIDEBAR ==== */}
-      <aside className="w-50 h-screen bg-gray-100 text-gray-900 p-6 flex flex-col">
-        {activeIdx===null && (
-          <p className="text-center text-gray-500 mt-20">Kliknij slot, by zobaczyć szczegóły</p>
-        )}
+{/* ==== PRAWY SIDEBAR ==== */}
+<aside className="w-54 h-screen bg-gray-100 text-gray-900 p-6 flex flex-col border-l border-gray-300">
+  {/* ───── BRAK WYBRANEGO SLOTA ───── */}
+  {activeIdx === null && (
+    <p className="text-center text-gray-500 mt-20">
+      Kliknij slot, by zobaczyć szczegóły
+    </p>
+  )}
 
-        {activeIdx!==null && squad[activeIdx]===null && (
-          <div className="flex-1 flex flex-col items-center  gap-4">
-            <div className="text-6xl text-gray-400">+</div>
-            <p>Pusta pozycja ({FORMATIONS[formation][activeIdx]})</p>
-            <button
-              onClick={()=>setSelectIdx(activeIdx)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
-              Dodaj kartę
-            </button>
-          </div>
-        )}
-
-  {activeIdx !== null && squad[activeIdx] && (
-    <div className="flex flex-col justify-between flex-1">
-      <div className="flex flex-col  gap-4">
-              <button
-        className="bg-red-600 hover:bg-red-700 py-2 text-white rounded w-full mt-4"
-        onClick={() => remove(activeIdx)}
+  {/* ───── PUSTY SLOT ───── */}
+  {activeIdx !== null && squad[activeIdx] === null && (
+    <div className="flex flex-col items-center justify-center flex-1 gap-4">
+      <div className="text-6xl text-gray-400">+</div>
+      <p>Pusta pozycja ({FORMATIONS[formation][activeIdx]})</p>
+      <button
+        onClick={() => setSelectIdx(activeIdx)}
+        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full"
       >
-        Usuń z drużyny
+        Dodaj kartę
       </button>
-        <h2 className="text-xl font-bold text-center">{squad[activeIdx]!.name}</h2>
-        <PlayerCard {...squad[activeIdx]!} scale={0.20} />
-        
-      </div>
     </div>
-        )}
-      </aside>
+  )}
+
+  {/* ───── KARTA W SLOcie ───── */}
+  {activeIdx !== null && squad[activeIdx] && (
+    <>
+      {/* Nazwa karty nad kartą */}
+      <h2 className="text-xl font-semibold mb-2 text-center">
+        {squad[activeIdx]!.name}
+      </h2>
+
+      {/* Główna karta */}
+      <div className="relative h-[250px] items-center justify-center mb-2 overflow-hidden">
+        <PlayerCard {...squad[activeIdx]!} scale={0.22} variant="full" />
+      </div>
+
+      {/* Pozycja pod kartą */}
+      <p
+        className={`text-center font-medium mb-6 ${
+          squad[activeIdx]!.position === FORMATIONS[formation][activeIdx]
+            ? "text-green-600"
+            : "text-orange-600"
+        }`}
+      >
+        Pozycja: {FORMATIONS[formation][activeIdx]}
+      </p>
+
+      {/* Przyciski akcji */}
+      <div className="border rounded-lg overflow-hidden shadow-sm divide-y divide-gray-300">
+        <button
+          className="w-full text-left px-4 py-3 bg-white hover:bg-gray-100 text-gray-800 font-medium"
+          onClick={() => {/* Dodaj modal szczegółów */}}
+        >
+          Dane zawodnika
+        </button>
+
+        <button
+          className="w-full text-left px-4 py-3 bg-white hover:bg-blue-50 text-blue-700 font-medium"
+          onClick={() => setSelectIdx(activeIdx)}
+        >
+          Wymień zawodnika
+        </button>
+
+        <button
+          className="w-full text-left px-4 py-3 bg-white hover:bg-yellow-50 text-yellow-700 font-medium"
+          onClick={() => remove(activeIdx)}
+        >
+          Wyślij do klubu
+        </button>
+
+        <button
+          className="w-full text-left px-4 py-3 bg-white hover:bg-red-50 text-red-700 font-medium"
+          onClick={() => setShowSellConfirm(true)}
+        >
+          Sprzedaj
+        </button>
+      </div>
+    </>
+  )}
+</aside>
+
+
+{/* ===== MODAL POTWIERDZENIA SPRZEDAŻY ===== */}
+<Transition show={showSellConfirm} as={Fragment}>
+  <Dialog as="div" className="relative z-50" onClose={() => setShowSellConfirm(false)}>
+    <Transition.Child
+      as={Fragment}
+      enter="ease-out duration-200"
+      enterFrom="opacity-0"
+      enterTo="opacity-100"
+      leave="ease-in duration-150"
+      leaveFrom="opacity-100"
+      leaveTo="opacity-0"
+    >
+      <div className="fixed inset-0 bg-black/70" />
+    </Transition.Child>
+
+    <div className="fixed inset-0 flex items-center justify-center p-4">
+      <Dialog.Panel className="bg-white rounded-lg p-6 w-full max-w-sm">
+        <Dialog.Title className="text-lg font-semibold mb-4">
+          Na pewno chcesz sprzedać tę kartę?
+        </Dialog.Title>
+        <div className="flex justify-end gap-3">
+          <button
+            className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+            onClick={() => setShowSellConfirm(false)}
+          >
+            Anuluj
+          </button>
+          <button
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            onClick={() => {
+              if (activeIdx !== null) {
+                // ➡️ tu możesz dodać logikę dodania monet
+                remove(activeIdx);   // usuwa kartę ze składu
+              }
+              setShowSellConfirm(false);
+            }}
+          >
+            Tak, sprzedaj
+          </button>
+        </div>
+      </Dialog.Panel>
+    </div>
+  </Dialog>
+</Transition>
+
 
       {/* ==== MODAL WYBORU ==== */}
       <Transition show={selectIdx!==null} as={Fragment}>
@@ -252,7 +380,7 @@ export default function SquadPage() {
             setSelectIdx(null);
           }}
         >
-          <PlayerCard {...c} scale={0.12} />
+          <PlayerCard {...c} scale={0.13} />
         </div>
       ))}
   </div>
