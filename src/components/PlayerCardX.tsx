@@ -81,7 +81,7 @@ const PlayerCardPanini: React.FC<PlayerCardProps> = ({
 
       {/* Zdjęcie + overall/position/level */}
       <div
-        className="relative flex justify-center pt-10 items-center overflow-hidden z-10"
+        className="relative flex justify-center pt-10  overflow-hidden z-10"
         style={{ height: "644px" }}
       >
         <img

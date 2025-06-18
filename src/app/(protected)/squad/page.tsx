@@ -33,16 +33,16 @@ const FORMATIONS: Record<FormationKey, string[]> = {
 /* ---------- układ slotów (%, względem kontenera boiska) ---------- */
 const FORMATION_POSITIONS: Record<FormationKey,{top:string;left:string}[]> = {
   "4-4-2":[
-    {top:"90%",left:"50%"},
-    {top:"72%",left:"15%"},{top:"72%",left:"32%"},{top:"72%",left:"68%"},{top:"72%",left:"85%"},
-    {top:"48%",left:"18%"},{top:"48%",left:"35%"},{top:"48%",left:"65%"},{top:"48%",left:"82%"},
-    {top:"20%",left:"38%"},{top:"20%",left:"62%"},
+    {top:"85%",left:"50%"},
+    {top:"70%",left:"15%"},{top:"70%",left:"32%"},{top:"70%",left:"68%"},{top:"70%",left:"85%"},
+    {top:"42%",left:"18%"},{top:"42%",left:"35%"},{top:"42%",left:"65%"},{top:"42%",left:"82%"},
+    {top:"15%",left:"38%"},{top:"15%",left:"62%"},
   ],
   "4-3-3":[
-    {top:"90%",left:"50%"},
-    {top:"72%",left:"15%"},{top:"72%",left:"32%"},{top:"72%",left:"68%"},{top:"72%",left:"85%"},
-    {top:"48%",left:"28%"},{top:"48%",left:"50%"},{top:"48%",left:"72%"},
-    {top:"20%",left:"15%"},{top:"20%",left:"50%"},{top:"20%",left:"85%"},
+    {top:"85%",left:"50%"},
+    {top:"70%",left:"12%"},{top:"72%",left:"32%"},{top:"72%",left:"68%"},{top:"70%",left:"88%"},
+    {top:"42%",left:"28%"},{top:"42%",left:"50%"},{top:"42%",left:"72%"},
+    {top:"15%",left:"15%"},{top:"15%",left:"50%"},{top:"15%",left:"85%"},
   ],
   "3-5-2":[
     {top:"90%",left:"50%"},
@@ -67,6 +67,9 @@ export default function SquadPage() {
   const [activeIdx,setActiveIdx]= useState<number|null>(null);
   const [selectIdx,setSelectIdx]= useState<number|null>(null); // modal wyboru
 const [showSellConfirm, setShowSellConfirm] = useState(false);
+const [chemistryArray, setChemistryArray] = useState<number[]>([]);
+const [totalChemistry, setTotalChemistry] = useState<number>(0);
+
 
 
   /* ---------- auth ---------- */
@@ -113,8 +116,22 @@ const [showSellConfirm, setShowSellConfirm] = useState(false);
       const byId=cards.reduce<Record<string,Card>>((a,c)=>{a[c.id]=c;return a;}, {});
       setSquad(FORMATIONS[formation].map((_,i)=>saved&&saved[i]?byId[saved[i]]||null:null));
       setLoading(false);
+
+const squadCards = FORMATIONS[formation].map((_, i) => saved && saved[i] ? byId[saved[i]] || null : null);
+setSquad(squadCards);
+
+const { chemistryArray, totalChemistry } = calculateChemistry(squadCards, formation);
+setChemistryArray(chemistryArray);
+setTotalChemistry(totalChemistry);
+
     })();
   },[user,clubsMap,leaguesMap,nationsMap,formation]);
+
+  useEffect(() => {
+  const { chemistryArray, totalChemistry } = calculateChemistry(squad, formation);
+  setChemistryArray(chemistryArray);
+  setTotalChemistry(totalChemistry);
+}, [squad, formation]);
 
   /* ---------- zapisz ---------- */
   const save=(arr:(Card|null)[])=>{
@@ -130,6 +147,33 @@ const [showSellConfirm, setShowSellConfirm] = useState(false);
   if (user) {
     await updateDoc(doc(db, "users", user.uid), { formation: newFormation });
   }
+};
+
+  /* ---------- zgranie ---------- */
+const calculateChemistry = (squad: (Card | null)[], formationKey: FormationKey): { chemistryArray: number[]; totalChemistry: number } => {
+  const positions = FORMATIONS[formationKey]; // lista pozycji z formacji (np. ["GK", "CB", "CB", ...])
+
+  const chemistryArray = squad.map((card, idx) => {
+    if (!card) return 0;
+
+    const positionInFormation = positions[idx];
+    const isCorrectPosition = card.position === positionInFormation;
+
+    if (!isCorrectPosition) return 0; // zgranie tylko jeśli pozycja się zgadza
+
+    let chemistry = 0;
+    squad.forEach((otherCard, otherIdx) => {
+      if (!otherCard || idx === otherIdx) return;
+      if (card.clubId === otherCard.clubId) chemistry++;
+      if (card.leagueId === otherCard.leagueId) chemistry++;
+      if (card.nationId === otherCard.nationId) chemistry++;
+    });
+
+    return Math.min(chemistry, 3);
+  });
+
+  const totalChemistry = chemistryArray.reduce((sum, val) => sum + val, 0);
+  return { chemistryArray, totalChemistry };
 };
 
 
@@ -163,7 +207,7 @@ const [showSellConfirm, setShowSellConfirm] = useState(false);
   if(loading) return <div className="text-white p-6">Ładowanie…</div>;
 
   return (
-    <div className="flex h-[85vh] bg-green-800 text-white overflow-hidden">
+    <div className="flex h-[88vh] bg-green-800 text-white overflow-hidden">
       {/* ==== LEWO: BOISKO ==== */}
       <div className="flex-1 flex flex-col items-center p-4 overflow-y-auto">
         <h1 className="text-2xl mb-3">Formacja {formation}</h1>
@@ -176,9 +220,10 @@ const [showSellConfirm, setShowSellConfirm] = useState(false);
     <option key={f}>{f}</option>
   ))}
 </select>
+<h2 className="text-lg font-bold mb-2">Zgranie drużyny: {totalChemistry}/33</h2>
 
 
-        <div className="relative w-full max-w-3xl h-[60vh] bg-green-900 rounded-lg border-4 border-green-700 overflow-hidden">
+        <div className="relative w-full max-w-3xl h-[68vh] bg-green-900 rounded-lg border-4 border-green-700 overflow-hidden">
           {/* linie */}
           <div className="absolute inset-0 border border-green-600 rounded-lg"/>
           <div className="absolute top-1/2 left-0 w-full border-t border-green-600"/>
@@ -190,33 +235,46 @@ const [showSellConfirm, setShowSellConfirm] = useState(false);
             const pos=FORMATION_POSITIONS[formation][idx];
             const slotPos=FORMATIONS[formation][idx];
 
-            return (
-<div
-  key={idx}
-  className="absolute w-20 h-28 -translate-x-1/2 -translate-y-1/2"
-  style={{top: pos.top, left: pos.left}}
-  onClick={() => setActiveIdx(idx)}
-  onDragOver={e => e.preventDefault()}
-  onDrop={e => onDropSlot(e, idx)}
-  title={card ? card.name : `Pozycja ${slotPos}`}
->
- {card ? (
-    <div
-      draggable
-      onDragStart={e => onDragStart(e, idx)}
-      className="w-full h-full cursor-pointer"
-    >
-      <div className="w-full h-full pointer-events-none">
-        <PlayerCard {...card} scale={0.1} variant="compact" />
+return (
+  <div
+    key={idx}
+    className="absolute w-20 h-32 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"
+    style={{ top: pos.top, left: pos.left }}
+    onClick={() => setActiveIdx(idx)}
+    onDragOver={e => e.preventDefault()}
+    onDrop={e => onDropSlot(e, idx)}
+    title={card ? card.name : `Pozycja ${slotPos}`}
+  >
+    {/* karta lub '+' */}
+    {card ? (
+      <div
+        draggable
+        onDragStart={e => onDragStart(e, idx)}
+        className="w-full h-28 cursor-pointer"
+      >
+        <div className="w-full h-full pointer-events-none">
+          <PlayerCard {...card} scale={0.1} variant="compact" />
+        </div>
       </div>
+    ) : (
+      <div className="w-full h-28 flex items-center justify-center bg-green-700/80 border border-green-500 rounded-lg text-2xl">
+        +
+      </div>
+    )}
+
+    {/* podpis pozycji */}
+    <div
+      className={`
+        mt-1 px-2 py-0.5 rounded text-sm font-semibold text-center  
+        ${card?.position === slotPos ? "bg-green-500 text-white" : "bg-green-600 text-orange-700"}
+      `}
+      style={{ minWidth: "50%" }}
+    >
+      {slotPos} {chemistryArray[idx] ?? 0}
     </div>
-  ) : (
-    <div className="w-full h-full flex items-center justify-center bg-green-700/80 border border-green-500 rounded-lg text-2xl">
-      +
-    </div>
-  )}
-</div>
-            );
+  </div>
+);
+
           })}
         </div>
       </div>
